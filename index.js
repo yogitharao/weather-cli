@@ -1,19 +1,30 @@
 const axios = require('axios');
 
+// Get city name from command line arguments
 const city = process.argv[2];
 
+// Validate that city argument was provided
 if (!city) {
   console.error('Error: Please provide a city name as an argument.');
   console.error('Usage: node index.js "CityName"');
   process.exit(1);
 }
 
+/**
+ * Fetches current weather data for a given city
+ * Uses Open-Meteo API (free, no authentication required)
+ * 
+ * @param {string} cityName - The name of the city to fetch weather for
+ * @throws {Error} If city is not found or API request fails
+ */
 async function fetchWeather(cityName) {
   try {
-    // Get coordinates using geocoding API
+    // Step 1: Get coordinates using geocoding API
+    // Convert city name to latitude/longitude
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=en&format=json`;
     const geoResponse = await axios.get(geoUrl);
 
+    // Validate that city was found
     if (!geoResponse.data.results || geoResponse.data.results.length === 0) {
       console.error(`Error: City "${cityName}" not found.`);
       process.exit(1);
@@ -21,11 +32,15 @@ async function fetchWeather(cityName) {
 
     const { latitude, longitude, name, country } = geoResponse.data.results[0];
 
-    // Get weather data
+    // Step 2: Get weather data using coordinates
+    // Fetch current temperature, weather condition, and wind speed
     const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,wind_speed_10m&temperature_unit=celsius`;
     const weatherResponse = await axios.get(weatherUrl);
     const current = weatherResponse.data.current;
 
+    // Step 3: Map weather codes to human-readable descriptions
+    // WMO Weather interpretation codes
+    // Reference: https://www.open-meteo.com/en/docs
     const weatherDescriptions = {
       0: 'Clear sky',
       1: 'Mainly clear',
@@ -56,9 +71,11 @@ async function fetchWeather(cityName) {
     const temperature = current.temperature_2m;
     const windSpeed = current.wind_speed_10m;
 
+    // Display weather information to user
     console.log(`\nWeather in ${name}, ${country}: ${temperature}°C, ${weatherDescription}\n`);
 
   } catch (error) {
+    // Handle specific error cases
     if (error.response && error.response.status === 404) {
       console.error(`Error: City "${cityName}" not found.`);
     } else if (error.message === 'Network Error') {
@@ -70,4 +87,5 @@ async function fetchWeather(cityName) {
   }
 }
 
+// Execute the weather fetch
 fetchWeather(city);
